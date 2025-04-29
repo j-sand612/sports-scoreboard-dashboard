@@ -1,54 +1,39 @@
 // components/TeamSelector.js
 import React, { useState } from 'react';
 
-function TeamSelector({ onAddTeam }) {
+function TeamSelector({ allTeams, onAddTeam }) {
   const [searchTerm, setSearchTerm] = useState('');
-  const [searchResults, setSearchResults] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [selectedLeague, setSelectedLeague] = useState('all');
+  const [selectedDivision, setSelectedDivision] = useState('all');
 
-  const leagues = [
-    { id: 'all', name: 'All Leagues' },
-    { id: 'NBA', name: 'NBA Basketball' },
-    { id: 'MLB', name: 'MLB Baseball' },
-    { id: 'NFL', name: 'NFL Football' },
-    { id: 'NHL', name: 'NHL Hockey' },
-    { id: 'EPL', name: 'English Premier League' }
+  // Group teams by division
+  const divisions = [
+    { id: 'all', name: 'All Divisions' },
+    { id: 'American League East', name: 'AL East' },
+    { id: 'American League Central', name: 'AL Central' },
+    { id: 'American League West', name: 'AL West' },
+    { id: 'National League East', name: 'NL East' },
+    { id: 'National League Central', name: 'NL Central' },
+    { id: 'National League West', name: 'NL West' }
   ];
 
-  const handleSearch = async (e) => {
-    e.preventDefault();
-    if (!searchTerm.trim()) return;
-    
-    setLoading(true);
-    try {
-      const response = await fetch(`/api/search?q=${encodeURIComponent(searchTerm)}&league=${selectedLeague}`);
-      
-      if (!response.ok) {
-        throw new Error('Search failed');
-      }
-      
-      const data = await response.json();
-      setSearchResults(data);
-    } catch (error) {
-      console.error('Error searching teams:', error);
-      setSearchResults([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const filteredTeams = allTeams.filter(team => {
+    const matchesSearch = team.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesDivision = selectedDivision === 'all' || team.division === selectedDivision;
+    return matchesSearch && matchesDivision;
+  });
 
   return (
     <div className="team-selector">
-      <h3>Find Teams</h3>
-      <form onSubmit={handleSearch}>
+      <h3>Find MLB Teams</h3>
+      <div className="team-filters">
         <select 
-          value={selectedLeague}
-          onChange={(e) => setSelectedLeague(e.target.value)}
+          value={selectedDivision}
+          onChange={(e) => setSelectedDivision(e.target.value)}
+          className="division-select"
         >
-          {leagues.map(league => (
-            <option key={league.id} value={league.id}>
-              {league.name}
+          {divisions.map(division => (
+            <option key={division.id} value={division.id}>
+              {division.name}
             </option>
           ))}
         </select>
@@ -57,28 +42,39 @@ function TeamSelector({ onAddTeam }) {
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           placeholder="Search for teams..."
+          className="team-search"
         />
-        <button type="submit">Search</button>
-      </form>
+      </div>
       
-      {loading ? (
-        <p>Searching...</p>
-      ) : (
-        <div className="search-results">
-          {searchResults.length > 0 ? (
-            <ul>
-              {searchResults.map(team => (
-                <li key={team.id}>
-                  {team.name} ({team.league})
-                  <button onClick={() => onAddTeam(team)}>Add to Favorites</button>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            searchTerm && <p>No teams found. Try a different search term.</p>
-          )}
-        </div>
-      )}
+      <div className="search-results">
+        {filteredTeams.length > 0 ? (
+          <ul className="teams-list">
+            {filteredTeams.map(team => (
+              <li key={team.id} className="team-item">
+                <div className="team-info">
+                  <img 
+                    src={team.logoUrl || `https://www.mlbstatic.com/team-logos/${team.id}.svg`}
+                    alt={team.name}
+                    className="team-logo-small" 
+                  />
+                  <div className="team-details">
+                    <span className="team-name">{team.name}</span>
+                    <span className="team-division">{team.division}</span>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => onAddTeam(team)} 
+                  className="add-favorite-btn"
+                >
+                  Add to Favorites
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          searchTerm && <p>No teams found. Try a different search term.</p>
+        )}
+      </div>
     </div>
   );
 }
