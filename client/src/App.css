@@ -768,4 +768,208 @@ footer {
   .batting-orders, .pitchers-container {
     grid-template-columns: 1fr;
   }
+
+  .team-link {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+  }
+  
+  .team-link:hover {
+    color: var(--mlb-blue);
+    text-decoration: underline;
+  }
+
+  .date-selector {
+    margin-bottom: 20px;
+  }
+  
+  .date-navigation {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 15px;
+  }
+  
+  .nav-button, .today-button {
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  
+  .nav-button {
+    background-color: var(--mlb-blue);
+    color: white;
+    border: none;
+  }
+  
+  .today-button {
+    background-color: var(--mlb-red);
+    color: white;
+    border: none;
+  }
+  
+  .current-date {
+    font-size: 16px;
+    font-weight: 500;
+    padding: 8px 15px;
+    background-color: var(--light-bg);
+    border-radius: 4px;
+    min-width: 260px;
+    text-align: center;
+  }
+  /*League Leaders css*/
+
+  .league-leaders {
+    background-color: white;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px;
+    width: 100%;
+  }
+  
+  /* Heading */
+  .league-leaders h2 {
+    text-align: center;
+    color: var(--mlb-blue);
+    margin-bottom: 20px;
+    font-size: 24px;
+    width: 100%;
+  }
+  
+  /* Category tabs */
+  .category-tabs {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    width: 100%;
+  }
+  
+  .category-tabs button {
+    padding: 8px 12px;
+    border-radius: 4px;
+    background-color: var(--light-bg);
+    border: 1px solid var(--border-color);
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s ease;
+  }
+  
+  .category-tabs button:hover {
+    background-color: #e0e0e0;
+  }
+  
+  .category-tabs button.active {
+    background-color: var(--mlb-blue);
+    color: white;
+    border-color: var(--mlb-blue);
+  }
+  
+  /* Leaders table container */
+  .leaders-table {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  /* Category title */
+  .leaders-table h3 {
+    text-align: center;
+    margin-bottom: 15px;
+    color: var(--mlb-blue);
+    border-bottom: 2px solid var(--mlb-blue);
+    padding-bottom: 8px;
+    font-size: 18px;
+    width: 100%;
+    max-width: 700px;
+  }
+  
+  /* Table */
+  .leaders-table table {
+    width: 100%;
+    max-width: 700px;
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+  
+  /* Table headers and cells */
+  .leaders-table th, 
+  .leaders-table td {
+    padding: 10px 8px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+  }
+  
+  .leaders-table th {
+    font-weight: 600;
+    background-color: var(--light-bg);
+    color: #444;
+  }
+  
+  /* Column widths */
+  .leaders-table th:nth-child(1),
+  .leaders-table td:nth-child(1) { 
+    width: 10%; 
+    text-align: center; 
+  }
+  
+  .leaders-table th:nth-child(2),
+  .leaders-table td:nth-child(2) { 
+    width: 40%; 
+  }
+  
+  .leaders-table th:nth-child(3),
+  .leaders-table td:nth-child(3) { 
+    width: 30%; 
+  }
+  
+  .leaders-table th:nth-child(4),
+  .leaders-table td:nth-child(4) { 
+    width: 20%; 
+    text-align: right; 
+  }
+  
+  /* Stat value styling */
+  .stat-value {
+    font-weight: bold;
+    color: var(--mlb-blue);
+  }
+  
+  /* Loading state */
+  .loading {
+    text-align: center;
+    padding: 20px;
+    color: #666;
+    font-style: italic;
+  }
+  
+  /* Error state */
+  .error {
+    text-align: center;
+    padding: 20px;
+    color: var(--mlb-red);
+    font-style: italic;
+  }
+  
+  /* Responsive adjustments */
+  @media (max-width: 768px) {
+    .league-leaders {
+      padding: 15px;
+    }
+    
+    .leaders-table table {
+      font-size: 14px;
+    }
+    
+    .leaders-table th, 
+    .leaders-table td {
+      padding: 8px 5px;
+    }
+  }
 }

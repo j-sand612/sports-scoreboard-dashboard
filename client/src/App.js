@@ -7,12 +7,58 @@ import GamesList from './components/GamesList';
 import GameDetail from './components/GameDetail';
 import Standings from './components/Standings';
 import TeamSchedule from './components/TeamSchedule';
+import DateSelector from './components/DateSelector';
+import LeagueLeaders from './components/LeagueLeaders';
 
 function App() {
   const [favorites, setFavorites] = useState([]);
   const [todayGames, setTodayGames] = useState([]);
   const [loading, setLoading] = useState(false);
   const [allTeams, setAllTeams] = useState([]);
+  const [selectedDate, setSelectedDate] = useState(new Date());
+
+  const fetchGamesByDate = async (date) => {
+    setLoading(true);
+    try {
+      // Format date to YYYY-MM-DD
+      const formattedDate = date.toISOString().split('T')[0];
+      // Add a timestamp parameter to prevent 304 responses
+      const timestamp = new Date().getTime();
+      const response = await fetch(`/api/mlb/games/date/${formattedDate}?_t=${timestamp}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch games');
+      }
+      const data = await response.json();
+      setTodayGames(data);
+    } catch (error) {
+      console.error(`Error fetching games for ${date}:`, error);
+      // Set empty array to clear previous games
+      setTodayGames([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Update your useEffect that fetches today's games
+  useEffect(() => {
+    fetchGamesByDate(selectedDate);
+    
+    // Only set up polling if the selected date is today
+    const isToday = new Date().toDateString() === selectedDate.toDateString();
+    
+    let intervalId;
+    if (isToday) {
+      // Set up polling every 60 seconds for today's games only
+      intervalId = setInterval(() => fetchGamesByDate(selectedDate), 60000);
+    }
+    
+    // Clean up interval on unmount
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [selectedDate]);
+  
 
   // Load saved favorites from localStorage on component mount
   useEffect(() => {
@@ -116,24 +162,29 @@ function App() {
 
   // Filter today's games to show favorite teams' games first
   const getFilteredGames = () => {
-    if (!todayGames.length) return [];
+    if (!todayGames || !todayGames.length) return [];
     
     const favoriteTeamIds = favorites.map(team => team.id);
     
     // Split games into favorites and non-favorites
     const favoriteGames = todayGames.filter(game => 
-      favoriteTeamIds.includes(game.homeTeam.id) || 
-      favoriteTeamIds.includes(game.awayTeam.id)
+      game && // Add null check here
+      ((game.homeTeam && favoriteTeamIds.includes(game.homeTeam.id)) || 
+       (game.awayTeam && favoriteTeamIds.includes(game.awayTeam.id)))
     );
     
     const otherGames = todayGames.filter(game => 
-      !favoriteTeamIds.includes(game.homeTeam.id) && 
-      !favoriteTeamIds.includes(game.awayTeam.id)
+      game && // Add null check here
+      (!game.homeTeam || !favoriteTeamIds.includes(game.homeTeam.id)) && 
+      (!game.awayTeam || !favoriteTeamIds.includes(game.awayTeam.id))
     );
     
     // Prioritize live games within each category
     const sortGames = (games) => {
       return games.sort((a, b) => {
+        // Null checks for a and b
+        if (!a || !b) return 0;
+        
         // Live games first
         if (a.abstractStatus === 'Live' && b.abstractStatus !== 'Live') return -1;
         if (a.abstractStatus !== 'Live' && b.abstractStatus === 'Live') return 1;
@@ -154,8 +205,26 @@ function App() {
     return [...sortGames(favoriteGames), ...sortGames(otherGames)];
   };
 
-  console.log("localStorage content:", localStorage.getItem('mlbFavoriteTeams'));
-
+  // Add date navigation functions
+  const goToNextDay = () => {
+    const nextDay = new Date(selectedDate);
+    nextDay.setDate(nextDay.getDate() + 1);
+    setSelectedDate(nextDay);
+  };
+  
+  const goToPreviousDay = () => {
+    const prevDay = new Date(selectedDate);
+    prevDay.setDate(prevDay.getDate() - 1);
+    setSelectedDate(prevDay);
+  };
+  
+  const goToToday = () => {
+    setSelectedDate(new Date());
+  };
+  
+  const handleDateSelect = (date) => {
+    setSelectedDate(date);
+  };
 
   return (
     <Router>
@@ -165,6 +234,7 @@ function App() {
           <nav className="main-nav">
             <Link to="/">Today's Games</Link>
             <Link to="/standings">Standings</Link>
+            <Link to="/leaders">League Leaders</Link>
             {favorites.length > 0 && favorites.map(team => (
               <Link key={team.id} to={`/team/${team.id}`}>{team.name}</Link>
             ))}
@@ -175,10 +245,6 @@ function App() {
             <Route path="/" element={
               <div className="dashboard-container">
                 <div className="sidebar">
-                  <TeamSelector 
-                    allTeams={allTeams} 
-                    onAddTeam={handleAddFavorite}
-                  />
                   <h3>Favorite Teams</h3>
                   <ul className="favorites-list">
                     {favorites.map(team => (
@@ -193,18 +259,33 @@ function App() {
                       </li>
                     ))}
                   </ul>
+                  <TeamSelector 
+                    allTeams={allTeams} 
+                    onAddTeam={handleAddFavorite}
+                  />
                 </div>
                 <div className="main-content">
+                <DateSelector
+                  selectedDate={selectedDate}
+                  onPrevDay={goToPreviousDay}
+                  onNextDay={goToNextDay}
+                  onToday={goToToday}
+                  />
                   {loading ? (
                     <p>Loading games...</p>
                   ) : (
-                    <GamesList games={getFilteredGames()} favorites={favorites} />
+                    <GamesList 
+                      games={getFilteredGames()} 
+                      favorites={favorites}
+                      selectedDate={selectedDate} 
+                    />
                   )}
                 </div>
               </div>
             } />
             <Route path="/game/:gameId" element={<GameDetail />} />
             <Route path="/standings" element={<Standings />} />
+            <Route path="/leaders" element={<LeagueLeaders />} />
             <Route path="/team/:teamId" element={<TeamSchedule allTeams={allTeams} />} />
           </Routes>
         </main>

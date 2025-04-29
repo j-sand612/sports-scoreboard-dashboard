@@ -1,5 +1,6 @@
 // components/TeamSelector.js
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 
 function TeamSelector({ allTeams, onAddTeam }) {
   const [searchTerm, setSearchTerm] = useState('');
@@ -58,7 +59,9 @@ function TeamSelector({ allTeams, onAddTeam }) {
                     className="team-logo-small" 
                   />
                   <div className="team-details">
-                    <span className="team-name">{team.name}</span>
+                    <Link to={`/team/${team.id}`} className="team-link">
+                      <span className="team-name">{team.name}</span>
+                    </Link>
                     <span className="team-division">{team.division}</span>
                   </div>
                 </div>

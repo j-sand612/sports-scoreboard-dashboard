@@ -424,6 +424,189 @@ app.post('/api/mlb/favorites', (req, res) => {
   res.json({ message: 'Favorites would be saved to database in a full implementation' });
 });
 
+app.get('/api/mlb/games/date/:date', async (req, res) => {
+  // Add these headers to prevent caching
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  
+  const { date } = req.params;
+  
+  if (!date) {
+    return res.status(400).json({ error: 'Date is required' });
+  }
+  
+  // Check if we can use cached data
+  const cacheKey = `date_${date}`;
+  const now = new Date();
+  if (
+    gamesCache[cacheKey] &&
+    lastFetchTime.games[cacheKey] &&
+    now.getTime() - lastFetchTime.games[cacheKey].getTime() < CACHE_DURATION.games
+  ) {
+    return res.json(gamesCache[cacheKey]);
+  }
+  
+  try {
+    const response = await axios.get(
+      `${MLB_API_BASE}/v1/schedule?sportId=1&date=${date}&hydrate=team,linescore,flags,liveLookin,person,probablePitcher,stats,broadcasts(all),game(content(media(epg),summary),tickets),seriesStatus(useOverride=true)`
+    );
+    console.log("MLB API Response structure:");
+    console.log("Has dates?", !!response.data.dates);
+    console.log("Dates length:", response.data.dates ? response.data.dates.length : 0);
+    // Format games data (same as your existing "today's games" code)
+    let games = [];
+    
+    if (response.data.dates && response.data.dates.length > 0) {
+      games = response.data.dates[0].games.map(game => {
+        // Calculate inning information
+        const currentInning = game.linescore?.currentInning || 0;
+        const inningHalf = game.linescore?.inningHalf || '';
+        const inningState = currentInning > 0 
+          ? `${inningHalf === 'top' ? 'Top' : 'Bottom'} ${currentInning}` 
+          : '';
+        
+        return {
+          id: game.gamePk,
+          date: game.gameDate,
+          status: game.status.detailedState,
+          abstractStatus: game.status.abstractGameState, // Preview, Live, Final
+          inningState,
+          homeTeam: {
+            id: game.teams.home.team.id,
+            name: game.teams.home.team.name,
+            score: game.teams.home.score,
+            wins: game.teams.home.leagueRecord.wins,
+            losses: game.teams.home.leagueRecord.losses
+          },
+          awayTeam: {
+            id: game.teams.away.team.id,
+            name: game.teams.away.team.name,
+            score: game.teams.away.score,
+            wins: game.teams.away.leagueRecord.wins,
+            losses: game.teams.away.leagueRecord.losses
+          },
+          venue: game.venue.name,
+          startTime: game.gameDate,
+          probablePitchers: {
+            home: game.teams.home.probablePitcher 
+              ? {
+                  id: game.teams.home.probablePitcher.id,
+                  name: game.teams.home.probablePitcher.fullName,
+                  stats: game.teams.home.probablePitcher.stats || {}
+                } 
+              : null,
+            away: game.teams.away.probablePitcher 
+              ? {
+                  id: game.teams.away.probablePitcher.id,
+                  name: game.teams.away.probablePitcher.fullName,
+                  stats: game.teams.away.probablePitcher.stats || {}
+                } 
+              : null
+          },
+          linescore: game.linescore || null
+        };
+      });
+    }
+    
+    // Update cache
+    gamesCache[cacheKey] = games;
+    lastFetchTime.games[cacheKey] = now;
+    
+    res.json(games);
+  } catch (error) {
+    console.error(`Error fetching MLB games for ${date}:`, error);
+    res.status(500).json({ error: `Failed to fetch MLB games for ${date}` });
+  }
+});
+
+app.get('/api/mlb/leaders', async (req, res) => {
+  const { category = 'homeRuns', season = new Date().getFullYear() } = req.query;
+  
+  // Define valid categories
+  const validCategories = [
+    'homeRuns', 'battingAverage', 'rbi', 'era', 'wins', 'strikeouts', 'saves', 'stolenBases', 'runs', 'hits'
+  ];
+  
+  if (!validCategories.includes(category)) {
+    return res.status(400).json({ error: 'Invalid category' });
+  }
+  
+  // Define MLB stat group and stat based on category
+  let statGroup = 'hitting';
+  let stat = category;
+  
+  // Map categories to MLB API stat names
+  const statMapping = {
+    battingAverage: { group: 'hitting', stat: 'avg' },
+    homeRuns: { group: 'hitting', stat: 'homeRuns' },
+    rbi: { group: 'hitting', stat: 'rbi' },
+    era: { group: 'pitching', stat: 'era' },
+    wins: { group: 'pitching', stat: 'wins' },
+    strikeouts: { group: 'pitching', stat: 'strikeOuts' },
+    saves: { group: 'pitching', stat: 'saves' },
+    stolenBases: { group: 'hitting', stat: 'stolenBases' },
+    runs: { group: 'hitting', stat: 'runs' },
+    hits: { group: 'hitting', stat: 'hits' }
+  };
+
+  if (statMapping[category]) {
+    statGroup = statMapping[category].group;
+    stat = statMapping[category].stat;
+  }
+  
+
+  
+  try {
+    const url = `${MLB_API_BASE}/v1/stats/leaders?leaderCategories=${stat}&statGroup=${statGroup}&season=${season}&limit=5`;
+    console.log(`Fetching league leaders from: ${url}`);
+    
+    const response = await axios.get(url);
+    
+    // Format leader data
+    const leaders = response.data.leagueLeaders[0].leaders.map(leader => ({
+      rank: leader.rank,
+      player: {
+        id: leader.person.id,
+        name: leader.person.fullName,
+        team: leader.team ? leader.team.name : 'N/A'
+      },
+      value: leader.value,
+      team: leader.team ? {
+        id: leader.team.id,
+        name: leader.team.name
+      } : null
+    }));
+    
+    res.json({
+      category,
+      displayName: getCategoryDisplayName(category),
+      leaders
+    });
+  } catch (error) {
+    console.error(`Error fetching ${category} leaders:`, error);
+    res.status(500).json({ error: `Failed to fetch ${category} leaders` });
+  }
+});
+
+// Helper function to get display name for a stat category
+function getCategoryDisplayName(category) {
+  const displayNames = {
+    homeRuns: 'Home Runs',
+    battingAverage: 'Batting Average',
+    rbi: 'RBI',
+    era: 'ERA',
+    wins: 'Wins',
+    strikeouts: 'Strikeouts',
+    saves: 'Saves',
+    stolenBases: 'Stolen Bases',
+    runs: 'Runs',
+    hits: 'Hits'
+  };
+  
+  return displayNames[category] || category;
+}
+
 // Catch-all handler for React routing
 app.get('*', (req, res) => {
   if (process.env.NODE_ENV === 'production') {
